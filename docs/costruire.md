@@ -9,7 +9,7 @@ Da sorgenti a `MediaDex-Setup.exe`, e da lì a una Release su GitHub.
 ## In un comando
 
 ```powershell
-.\costruisci.ps1 -Versione 1.0.0
+.\costruisci.ps1 -Versione 2.0
 ```
 
 Alla fine stampa dove è finito, quanto pesa e la sua impronta SHA256:
@@ -163,7 +163,7 @@ l'utente ha già sarebbe sproporzionato.
 ## Pubblicare una versione
 
 ```bash
-git tag v1.0.0
+git tag v2.0
 git push --tags
 ```
 

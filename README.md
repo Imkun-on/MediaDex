@@ -279,7 +279,7 @@ che va storto: **[docs/architettura.md](docs/architettura.md)**.
 
 ```powershell
 winget install JRSoftware.InnoSetup    # una volta sola
-.\costruisci.ps1 -Versione 1.0.0
+.\costruisci.ps1 -Versione 2.0
 ```
 
 PyInstaller fa la cartella eseguibile, Inno Setup ne fa un installatore. Alla
@@ -293,7 +293,7 @@ fine lo script stampa dove è finito, quanto pesa e la sua impronta SHA256.
 ### Pubblicare una versione
 
 ```bash
-git tag v1.0.0 && git push --tags
+git tag v2.0 && git push --tags
 ```
 
 Il resto lo fa GitHub Actions, lanciando **lo stesso `costruisci.ps1`**.

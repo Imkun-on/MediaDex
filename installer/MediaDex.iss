@@ -3,7 +3,7 @@
 ; Non si compila a mano: lo chiama costruisci.ps1, che prima costruisce
 ; dist\MediaDex\ con PyInstaller e poi passa di qui con la versione giusta.
 ;
-;     .\costruisci.ps1 -Versione 1.0.0
+;     .\costruisci.ps1 -Versione 2.0
 ;
 ; Cosa fa, in ordine
 ;   1. controlla se WebView2 c'e' gia'; se no lo scarica (e se il download
@@ -22,7 +22,7 @@
 ; La versione arriva da costruisci.ps1 come /DVersione=1.2.0. Il ripiego serve
 ; solo a chi compila questo file a mano per prova.
 #ifndef Versione
-  #define Versione     "1.0.0"
+  #define Versione     "2.0"
 #endif
 
 [Setup]

@@ -29,7 +29,7 @@
 
 [CmdletBinding()]
 param(
-    [string] $Versione = '1.0.0',
+    [string] $Versione = '2.0',
     [switch] $SoloInstallatore,
     [switch] $Forza
 )
