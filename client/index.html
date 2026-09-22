@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>MediaDex</title>
+  <!-- WebView2 non mostra nessuna scheda, quindi questo titolo dentro la
+       finestra non si vede: serve a chi apre il file in un browser per
+       lavorarci sopra. -->
+  <link rel="icon" href="../assets/MediaDex.png">
+  <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+
+  <!-- Sfondo: quattro strati sovrapposti, tutti generati dal CSS.
+       Nessun file, nessun download, niente da inizializzare. -->
+  <div class="sfondo" aria-hidden="true">
+    <!-- Il video sta sopra i gradienti e sotto il velo. Se il file non c'e',
+         l'elemento resta vuoto e si vedono i gradienti: non e' un ripiego
+         mesto, e' uno sfondo a sua volta guardabile. -->
+    <video id="video-sfondo" class="video-sfondo" autoplay muted loop playsinline></video>
+    <div class="tinta-verde"></div>
+    <div class="alone alone-1"></div>
+    <div class="alone alone-2"></div>
+    <div class="alone alone-3"></div>
+    <div class="griglia"></div>
+    <div class="grana"></div>
+    <div class="vignetta"></div>
+  </div>
+
+  <!-- Le icone stanno qui una volta sola e si richiamano con <use>. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <g id="i-audio" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>
+      </g>
+      <g id="i-disco" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>
+      </g>
+      <g id="i-video" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.5"/>
+        <path d="M2.5 9.5h19M7 5v4.5M17 5v4.5M7 19v-4.5M17 19v-4.5M2.5 14.5h19"/>
+      </g>
+      <g id="i-forbici" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/>
+        <path d="M20 4L8.5 15.5M14.5 14.5L20 20M8.5 8.5l3 3"/>
+      </g>
+      <g id="i-cerca" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>
+      </g>
+      <g id="i-scarica" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12M7.5 10.5L12 15l4.5-4.5M4 19h16"/>
+      </g>
+      <g id="i-cartella" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      </g>
+      <g id="i-vuoto" fill="none" stroke="currentColor" stroke-width="1.3"
+         stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18M8.5 14.5h7"/>
+      </g>
+      <g id="i-lente" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8.5v5M8.5 11h5"/>
+      </g>
+      <g id="i-avvia" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 4.5l12 7.5-12 7.5z"/>
+      </g>
+      <g id="i-maniglia" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M8 7h8M8 12h8M8 17h8"/>
+      </g>
+      <!-- Le tre che servono alla finestra: un guaio, un errore, una conferma. -->
+      <g id="i-avviso" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5L21.5 20h-19z"/><path d="M12 9.5v5M12 17.2v.3"/>
+      </g>
+      <g id="i-errore" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/>
+      </g>
+      <g id="i-spunta" fill="none" stroke="currentColor" stroke-width="1.9"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 12.5l5 5 10-11"/>
+      </g>
+    </defs>
+  </svg>
+
+  <div class="guscio">
+
+    <aside class="barra">
+      <!-- Il marchio: un disco che si apre in un'onda sonora.
+           Dice i due mestieri piu' riconoscibili del programma - scaricare
+           musica e inciderla - in un segno solo, e non somiglia a niente di
+           EchoScript, che ha le barre di livello anche lui.
+
+           E' lo stesso disegno dell'icona sul desktop, cosi' chi ha appena
+           fatto doppio clic lo ritrova dentro la finestra. E' vettoriale e non
+           l'immagine dell'icona, perche' resta nitido a qualunque misura e
+           prende il colore dal tema invece di portarsi dietro il proprio.
+
+           Le coordinate sono LE STESSE di assets/marchio.py, che da queste
+           genera il .ico e il .png, e del velo di avvio in fondo a questo
+           file. Cambiarne uno vuol dire cambiarli tutti e tre, altrimenti si
+           contraddicono a due secondi di distanza. -->
+      <div class="marchio">
+        <svg class="marchio-icona" viewBox="0 20 100 60" aria-hidden="true">
+          <circle cx="26" cy="50" r="20" fill="none" stroke="currentColor" stroke-width="8"/>
+          <circle cx="26" cy="50" r="6.5" fill="currentColor"/>
+          <rect class="b1" x="62" y="35" width="8" height="30" rx="4" fill="currentColor"/>
+          <rect class="b2 alta" x="75" y="22" width="8" height="56" rx="4" fill="currentColor"/>
+          <rect class="b3" x="88" y="40" width="8" height="20" rx="4" fill="currentColor"/>
+        </svg>
+        <div class="logo">MediaDex</div>
+      </div>
+
+      <!-- Quattro stanze, e in ciascuna c'e' tutto il lavoro di quel mestiere:
+           il modulo, l'avanzamento, il risultato. La targhetta a destra della
+           voce dice se li' dentro sta girando qualcosa: e' l'unica cosa che si
+           vede da fuori, e serve proprio perche' un lavoro alla volta puo'
+           essere partito in una stanza in cui adesso non si sta. -->
+      <nav class="menu">
+        <button class="voce attiva" data-va="audio">
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-audio"/></svg>
+          <span data-t="menu.audio"></span>
+          <span class="targhetta-menu spenta" data-targhetta="audio"></span>
+        </button>
+        <button class="voce" data-va="burn">
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-disco"/></svg>
+          <span data-t="menu.burn"></span>
+          <span class="targhetta-menu spenta" data-targhetta="burn"></span>
+        </button>
+        <button class="voce" data-va="pix">
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+          <span data-t="menu.pix"></span>
+          <span class="targhetta-menu spenta" data-targhetta="pix"></span>
+        </button>
+        <button class="voce" data-va="clip">
+          <span class="rotaia"></span>
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-forbici"/></svg>
+          <span data-t="menu.clip"></span>
+          <span class="targhetta-menu spenta" data-targhetta="clip"></span>
+        </button>
+      </nav>
+
+      <!-- Dove sono finiti i file.
+           Da quando il programma non chiede piu' dove salvare, questo e' il
+           modo di scoprirlo: un posto solo, e un bottone che lo apre. Sta in
+           fondo alla barra perche' non appartiene a nessuna delle quattro
+           stanze - vale per tutte. -->
+      <div class="piede">
+        <button id="apri-risultati" class="bottone nudo largo">
+          <svg class="icona" viewBox="0 0 24 24"><use href="#i-cartella"/></svg>
+          <span data-t="app.apri_risultati"></span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="corpo">
+
+      <!-- ══ AUDIO ══════════════════════════════════════════════════════ -->
+      <div class="sezione attiva" data-sez="audio">
+        <header class="intestazione">
+          <h1 data-t="audio.title"></h1>
+          <p data-t="audio.desc"></p>
+        </header>
+        <hr class="divisore">
+
+        <section class="vetro">
+          <div class="riga">
+            <div class="gruppo stretto">
+              <label data-t="audio.mode"></label>
+              <select id="modo" class="campo">
+                <option value="url" data-t="audio.mode.url"></option>
+                <option value="search" data-t="audio.mode.search"></option>
+              </select>
+            </div>
+            <div class="gruppo largo">
+              <label id="etichetta-input"></label>
+              <div class="campo-icona">
+                <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-cerca"/></svg>
+                <input id="ingresso" class="campo con-icona" type="text" spellcheck="false">
+              </div>
+            </div>
+          </div>
+          <div class="riga">
+            <div class="gruppo stretto">
+              <label data-t="audio.media"></label>
+              <select id="media" class="campo">
+                <option value="audio" data-t="audio.media.audio"></option>
+                <option value="video" data-t="audio.media.video"></option>
+              </select>
+            </div>
+            <div class="gruppo mini">
+              <label data-t="audio.format"></label>
+              <select id="formato" class="campo"></select>
+            </div>
+            <div class="gruppo mini">
+              <label data-t="audio.workers"></label>
+              <input id="paralleli" class="campo" type="number" min="1" max="8" value="3">
+            </div>
+          </div>
+          <div class="interruttori">
+            <label class="interruttore">
+              <input type="checkbox" id="testi" checked><span class="cursore"></span>
+              <span data-t="audio.lyrics"></span>
+            </label>
+            <label class="interruttore">
+              <input type="checkbox" id="dividi"><span class="cursore"></span>
+              <span data-t="audio.split"></span>
+            </label>
+          </div>
+          <div class="azioni">
+            <button id="analizza" class="bottone contorno">
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-cerca"/></svg>
+              <span data-t="audio.analyze"></span>
+            </button>
+            <div class="spazio"></div>
+            <button id="scarica" class="bottone pieno">
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-scarica"/></svg>
+              <span data-t="audio.start"></span>
+            </button>
+          </div>
+        </section>
+
+        <div class="scorciatoie" data-t="scorciatoie"></div>
+
+        <!-- L'avanzamento e' di questa sezione e resta qui.
+             Prima ce n'era uno solo, che traslocava nella stanza aperta. Con
+             un lavoro alla volta sembrava una semplificazione, ed era un
+             difetto: avviato un download e passati a Montaggio, in Montaggio
+             ci si trovava davanti la barra di quello che stava scaricando di
+             la'. Adesso ogni stanza ha la sua, e chi vuole sapere dove sta
+             girando il lavoro lo legge sulla targhetta nella barra. -->
+        <div class="avanzamento">
+          <div class="binario"><div class="cursa"></div></div>
+          <div class="avanzamento-testo"></div>
+        </div>
+
+        <section class="vetro colonna">
+          <div class="titolo-pannello">
+            <span class="spia"></span>
+            <span data-t="audio.results"></span>
+            <span class="stato"></span>
+            <div class="spazio"></div>
+            <button class="bottone nudo" id="tutti" data-t="sel.all"></button>
+            <button class="bottone nudo" id="nessuno" data-t="sel.none"></button>
+            <span class="targhetta" id="conteggio"></span>
+          </div>
+          <div id="risultati" class="elenco"></div>
+        </section>
+      </div>
+
+      <!-- ══ MASTERIZZAZIONE ════════════════════════════════════════════ -->
+      <div class="sezione" data-sez="burn">
+        <header class="intestazione">
+          <h1 data-t="burn.title"></h1>
+          <p data-t="burn.desc"></p>
+        </header>
+        <hr class="divisore">
+
+        <section class="vetro">
+          <div class="riga">
+            <div class="gruppo largo">
+              <label data-t="burn.folder"></label>
+              <div class="campo-icona">
+                <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-cartella"/></svg>
+                <input id="b-cartella" class="campo con-icona con-coda" type="text" spellcheck="false">
+                <button id="b-sfoglia" class="coda">…</button>
+              </div>
+            </div>
+            <div class="gruppo stretto">
+              <label data-t="burn.speed"></label>
+              <select id="b-velocita" class="campo">
+                <option value="auto" data-t="burn.speed.auto"></option>
+                <option value="4">4x</option><option value="8">8x</option>
+                <option value="16">16x</option><option value="24">24x</option>
+                <option value="32">32x</option><option value="48">48x</option>
+              </select>
+            </div>
+            <div class="gruppo stretto">
+              <label data-t="burn.drive"></label>
+              <select id="b-unita" class="campo"></select>
+            </div>
+          </div>
+          <div class="interruttori">
+            <label class="interruttore">
+              <input type="checkbox" id="b-livella" checked><span class="cursore"></span>
+              <span data-t="burn.level"></span>
+            </label>
+            <label class="interruttore">
+              <input type="checkbox" id="b-rifila"><span class="cursore"></span>
+              <span data-t="burn.trim"></span>
+            </label>
+            <label class="interruttore">
+              <input type="checkbox" id="b-prova" checked><span class="cursore"></span>
+              <span data-t="burn.dry"></span>
+            </label>
+            <label class="interruttore">
+              <input type="checkbox" id="b-noeject"><span class="cursore"></span>
+              <span data-t="burn.noeject"></span>
+            </label>
+          </div>
+          <div class="azioni">
+            <button id="b-leggi" class="bottone contorno">
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-cartella"/></svg>
+              <span data-t="burn.scan"></span>
+            </button>
+            <div class="spazio"></div>
+            <button id="b-avvia" class="bottone pieno" disabled>
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-disco"/></svg>
+              <span data-t="burn.start"></span>
+            </button>
+          </div>
+        </section>
+
+        <div class="avanzamento">
+          <div class="binario"><div class="cursa"></div></div>
+          <div class="avanzamento-testo"></div>
+        </div>
+
+        <section class="vetro colonna">
+          <div class="titolo-pannello">
+            <span class="spia"></span>
+            <span data-t="burn.tracks"></span>
+            <span class="stato"></span>
+            <div class="spazio"></div>
+            <span class="targhetta" id="b-capienza"></span>
+          </div>
+          <div class="capienza"><div class="capienza-piena" id="b-barra-cd"></div></div>
+          <div class="nota-riga" id="b-criterio"></div>
+          <div id="b-tracce" class="elenco"></div>
+        </section>
+      </div>
+
+      <!-- ══ RIMASTERIZZA ═══════════════════════════════════════════════ -->
+      <div class="sezione" data-sez="pix">
+        <header class="intestazione">
+          <h1 data-t="pix.title"></h1>
+          <p data-t="pix.desc"></p>
+        </header>
+        <hr class="divisore">
+
+        <section class="vetro">
+          <div class="riga">
+            <div class="gruppo largo">
+              <label data-t="pix.file"></label>
+              <div class="campo-icona">
+                <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+                <input id="p-file" class="campo con-icona con-coda" type="text" spellcheck="false">
+                <button id="p-sfoglia" class="coda">…</button>
+              </div>
+            </div>
+            <div class="gruppo stretto">
+              <label data-t="pix.preset"></label>
+              <select id="p-preset" class="campo"></select>
+            </div>
+          </div>
+          <div class="gruppo" style="margin-bottom:var(--s3)">
+            <label data-t="pix.resolution"></label>
+            <div id="p-risoluzioni" class="scelte"></div>
+          </div>
+          <div class="interruttori">
+            <label class="interruttore">
+              <input type="checkbox" id="p-confronto" checked><span class="cursore"></span>
+              <span data-t="pix.compare"></span>
+            </label>
+            <label class="interruttore">
+              <input type="checkbox" id="p-gpu"><span class="cursore"></span>
+              <span data-t="pix.gpu"></span>
+            </label>
+          </div>
+          <div class="azioni">
+            <button id="p-analizza" class="bottone contorno">
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-lente"/></svg>
+              <span data-t="pix.analyze"></span>
+            </button>
+            <div class="spazio"></div>
+            <button id="p-avvia" class="bottone pieno" disabled>
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-avvia"/></svg>
+              <span data-t="pix.start"></span>
+            </button>
+          </div>
+        </section>
+
+        <div class="avanzamento">
+          <div class="binario"><div class="cursa"></div></div>
+          <div class="avanzamento-testo"></div>
+        </div>
+
+        <div class="due-colonne">
+          <section class="vetro colonna">
+            <div class="titolo-pannello">
+              <span class="spia"></span>
+              <span data-t="pix.diagnosis"></span>
+              <span class="stato"></span>
+            </div>
+            <div id="p-diagnosi" class="elenco"></div>
+          </section>
+          <section class="vetro colonna">
+            <div class="titolo-pannello"><span data-t="pix.preview"></span></div>
+            <div id="p-anteprima" class="anteprima"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ══ MONTAGGIO ══════════════════════════════════════════════════ -->
+      <div class="sezione" data-sez="clip">
+        <header class="intestazione">
+          <h1 data-t="clip.title"></h1>
+          <p data-t="clip.desc"></p>
+        </header>
+        <hr class="divisore">
+
+        <section class="vetro">
+          <div class="riga">
+            <div class="gruppo stretto">
+              <label data-t="clip.op"></label>
+              <select id="c-azione" class="campo"></select>
+            </div>
+            <div class="gruppo largo">
+              <label id="c-etichetta-file"></label>
+              <div class="campo-icona">
+                <svg class="icona-campo" viewBox="0 0 24 24"><use href="#i-video"/></svg>
+                <input id="c-file" class="campo con-icona con-coda" type="text" spellcheck="false">
+                <button id="c-sfoglia" class="coda">…</button>
+              </div>
+            </div>
+          </div>
+          <div class="riga" id="c-parametri"></div>
+          <div class="interruttori" id="c-interruttori"></div>
+          <div class="azioni">
+            <div class="spazio"></div>
+            <button id="c-avvia" class="bottone pieno">
+              <svg class="icona" viewBox="0 0 24 24"><use href="#i-avvia"/></svg>
+              <span data-t="clip.start"></span>
+            </button>
+          </div>
+        </section>
+
+        <div class="avanzamento">
+          <div class="binario"><div class="cursa"></div></div>
+          <div class="avanzamento-testo"></div>
+        </div>
+
+        <section class="vetro colonna">
+          <div class="titolo-pannello">
+            <span class="spia"></span>
+            <span data-t="clip.result"></span>
+            <span class="stato"></span>
+          </div>
+          <div id="c-risultato" class="anteprima"></div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Qui c'era la scheda del diario, sotto le sezioni. E' stata tolta: era un
+       muro di righe tecniche che raccontava lo stesso lavoro gia' raccontato,
+       meglio, dalla barra di avanzamento. E quando qualcosa andava storto, la
+       riga che contava finiva sepolta sotto le altre invece di farsi notare.
+       Adesso quello che va bene lo dice un avviso qui sotto, e quello che va
+       male lo dice la finestra: con scritto su quale file, di che si tratta, e
+       il testo tecnico sotto. Il diario completo continua a scriversi in
+       logs/, dove serve davvero: a chi va a cercarlo dopo. -->
+  <div class="avvisi" id="avvisi"></div>
+
+  <div class="velo-trascina" id="velo-trascina">
+    <div class="riquadro-trascina">
+      <svg class="icona" viewBox="0 0 24 24"><use href="#i-scarica"/></svg>
+      <span data-t="trascina"></span>
+    </div>
+  </div>
+
+  <!-- La finestra modale e' una sola e viene riempita di volta in volta:
+       un errore, un riepilogo, una conferma. Averne una per caso
+       significherebbe quattro strutture da tenere allineate. -->
+  <div class="velo-finestra" id="velo-finestra">
+    <div class="finestra" id="finestra" role="dialog" aria-modal="true">
+      <div class="finestra-testa">
+        <svg class="icona" viewBox="0 0 24 24"><use href="#i-avviso" id="finestra-icona"/></svg>
+        <h2 id="finestra-titolo"></h2>
+      </div>
+      <div class="finestra-corpo" id="finestra-corpo"></div>
+      <div class="finestra-azioni" id="finestra-azioni"></div>
+    </div>
+  </div>
+
+  <!-- Il velo di caricamento.
+       Prende il testimone dalla schermata che PyInstaller mostra mentre
+       scompatta l'eseguibile: quella sparisce quando la finestra compare,
+       questo quando la pagina e' davvero pronta. Senza, in mezzo si vedrebbe
+       per un istante l'interfaccia ancora vuota e senza traduzioni. -->
+  <div class="velo-avvio" id="velo-avvio">
+    <div class="avvio-blocco">
+      <svg class="avvio-marchio" viewBox="0 20 100 60" aria-hidden="true">
+        <circle cx="26" cy="50" r="20" fill="none" stroke="currentColor" stroke-width="8"/>
+        <circle cx="26" cy="50" r="6.5" fill="currentColor"/>
+        <rect class="b1" x="62" y="35" width="8" height="30" rx="4" fill="currentColor"/>
+        <rect class="b2 alta" x="75" y="22" width="8" height="56" rx="4" fill="currentColor"/>
+        <rect class="b3" x="88" y="40" width="8" height="20" rx="4" fill="currentColor"/>
+      </svg>
+      <div class="avvio-nome">MediaDex</div>
+      <div class="avvio-barra"><span></span></div>
+    </div>
+  </div>
+
+  <script src="components/dropdown.js"></script>
+  <script src="components/modal.js"></script>
+  <script src="app.js"></script>
+  <script src="features/audio.js"></script>
+  <script src="features/burn.js"></script>
+  <script src="features/pix.js"></script>
+  <script src="features/clip.js"></script>
+  <script>avvia();</script>
+</body>
+</html>

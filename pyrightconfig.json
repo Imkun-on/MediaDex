@@ -1,0 +1,6 @@
+{
+  "//": "La radice sta in extraPaths perche' gli import sono assoluti dalla radice (server.*, cli.*): senza, un controllo di tipi lanciato da una sottocartella non li risolverebbe.",
+  "extraPaths": ["."],
+  "pythonVersion": "3.10",
+  "exclude": ["**/__pycache__", "build", "dist", "installer/output"]
+}

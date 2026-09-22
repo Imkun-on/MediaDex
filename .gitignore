@@ -1,5 +1,6 @@
-# Contenuti scaricati (pesanti + copyright): mai su GitHub
-download_audio/
+# Quello che il programma produce: brani scaricati, video rifatti, montaggi.
+# Pesanti e spesso coperti da copyright: mai su GitHub.
+risultati/
 failed_tracks.txt
 
 # Database locale (condiviso con gli altri scraper)
@@ -7,10 +8,6 @@ failed_tracks.txt
 *.db-shm
 *.db-wal
 *.db.backup-*
-
-# Preferenze locali (lingua dell'interfaccia): sono di chi usa il programma,
-# non del progetto
-settings.json
 
 # Log
 logs/
@@ -34,10 +31,10 @@ desktop.ini
 # Catture dello schermo lasciate nella cartella.
 #
 # Il pattern e' quello del nome che ci mette Windows, con la data: "Screenshot
-# 2026-08-02 205040.png". NON e' "Screenshot*", che qui sarebbe una trappola:
-# su Windows git confronta i nomi senza distinguere maiuscole e minuscole
-# (core.ignorecase), quindi "Screenshot*" prenderebbe anche screenshot.png, che
-# invece deve restare versionato perche' e' l'immagine dei README.
+# 2026-08-02 205040.png". Resta stretto cosi' invece di diventare
+# "Screenshot*" perche' su Windows git confronta i nomi senza distinguere
+# maiuscole e minuscole (core.ignorecase): un pattern largo si prenderebbe
+# anche un eventuale screenshot.png messo di proposito nel repository.
 Screenshot 20*.png
 Screenshot_20*.png
 
@@ -47,11 +44,13 @@ memory/
 # Sfondo della GUI: scaricato al primo avvio dalla Release, non versionato
 assets/*.mp4
 
-# Costruzione dell'eseguibile: il .exe pesa 40 MB e si rifa' in due minuti
-# da AudioDex.spec, quindi nel repository non ha senso tenerlo. Sta come
+# Costruzione: PyInstaller (dist/, build/) e Inno Setup (installer/output/).
+# Il risultato pesa decine di megabyte e si rifa' in due minuti con
+# costruisci.ps1, quindi nel repository non ha senso tenerlo. Sta come
 # allegato della Release, ed e' li' che va cercato.
 build/
 dist/
+installer/output/
 # Anche fuori da dist/: un eseguibile copiato sul desktop del progetto per
 # provarlo, e committato per distrazione, sono 40 MB dentro la storia di git
 # che poi non si tolgono piu' senza riscriverla.
