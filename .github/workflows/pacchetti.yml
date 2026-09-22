@@ -1,0 +1,157 @@
+# Costruisce MediaDex-Setup.exe e, sui tag, lo pubblica come Release.
+#
+#   git tag v1.2.0 && git push --tags     -> costruisce e pubblica
+#   «Run workflow» da GitHub               -> costruisce e basta, per provare
+#
+# La cosa che conta: questo file NON rifa' a modo suo quello che fa
+# costruisci.ps1. Lo chiama. Sono lo stesso comando che si lancia in locale, e
+# quindi non possono divergere - che e' il modo in cui le pipeline di solito
+# smettono di somigliare a quello che succede sulla macchina di chi sviluppa.
+
+name: Pacchetti
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      versione:
+        description: 'Numero di versione da costruire'
+        required: false
+        default: '0.0.0-prova'
+
+concurrency:
+  group: pacchetti-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decidi il numero di versione
+        id: versione
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+              $v = $env:GITHUB_REF -replace '^refs/tags/v', ''
+          } else {
+              $v = '${{ github.event.inputs.versione }}'
+              if (-not $v) { $v = '0.0.0-prova' }
+          }
+          Write-Host "Versione: $v"
+          "valore=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - uses: actions/setup-python@v5
+        with:
+          # Fissata, non "latest": pywin32 e pythonnet hanno le ruote
+          # precompilate per questa, e su una versione appena uscita
+          # finirebbero a compilarsi da sorgente o a non installarsi affatto.
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Procura ffmpeg
+        shell: pwsh
+        run: |
+          # Non da Chocolatey, di proposito: choco mette nel PATH uno shim, e
+          # un domani in cui questo pacchetto incorporasse FFmpeg finirebbe
+          # dentro lo shim invece dell'eseguibile vero. Qui serve solo a far
+          # passare il controllo di costruisci.ps1, ma la ragione resta.
+          $zip = "$env:RUNNER_TEMP\ffmpeg.zip"
+          Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\ffmpeg"
+          $bin = (Get-ChildItem "$env:RUNNER_TEMP\ffmpeg" -Recurse -Filter 'ffmpeg.exe' | Select-Object -First 1).DirectoryName
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          Write-Host "ffmpeg in $bin"
+
+      - name: Procura Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          # Si controlla che il file ci sia invece di lanciarlo con /?: quello
+          # esce con codice diverso da zero e farebbe fallire il passo.
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe non trovato dopo l'installazione." }
+          Write-Host "Inno Setup in $iscc"
+
+      - name: Dipendenze Python
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Costruisci
+        shell: pwsh
+        run: .\costruisci.ps1 -Versione '${{ steps.versione.outputs.valore }}' -Forza
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MediaDex-Setup-${{ steps.versione.outputs.valore }}
+          path: installer/output/MediaDex-Setup.exe
+          retention-days: 30
+          # E' gia' compresso con lzma2: ricomprimerlo non toglie un byte e
+          # aggiunge un minuto.
+          compression-level: 0
+
+      - name: Pubblica la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.versione.outputs.valore }}'
+          $file = 'installer/output/MediaDex-Setup.exe'
+          $mb = [math]::Round((Get-Item $file).Length / 1MB, 1)
+          $sha = (Get-FileHash $file -Algorithm SHA256).Hash
+
+          # Le note si scrivono riga per riga in un array invece che con un
+          # here-string di PowerShell: dentro un blocco YAML il terminatore
+          # '@ dovrebbe stare in colonna zero, e l'indentazione del file lo
+          # rende impossibile.
+          $righe = @(
+            "## MediaDex $v",
+            "",
+            "Scarica **MediaDex-Setup.exe** qui sotto e fai doppio clic.",
+            "Non serve Python, non servono permessi di amministratore.",
+            "",
+            "| | |",
+            "|---|---|",
+            "| Peso | $mb MB |",
+            "| SHA256 | ``$sha`` |",
+            "",
+            "### Se Windows dice che non conosce l'editore",
+            "",
+            "SmartScreen lo dice di ogni programma non firmato: una firma",
+            "costa qualche centinaio di euro l'anno. Premi **Ulteriori",
+            "informazioni**, poi **Esegui comunque**.",
+            "",
+            "Se preferisci controllare prima, l'impronta qui sopra si verifica",
+            "cosi':",
+            "",
+            '```powershell',
+            'Get-FileHash .\MediaDex-Setup.exe -Algorithm SHA256',
+            '```',
+            "",
+            "### Serve anche FFmpeg",
+            "",
+            'Non e'' incluso (sono 400 MB). Una volta sola:',
+            "",
+            '```powershell',
+            'winget install Gyan.FFmpeg',
+            '```'
+          )
+          $righe | Set-Content -Path note.md -Encoding utf8
+
+          gh release view "v$v" *> $null
+          if ($LASTEXITCODE -eq 0) {
+              gh release upload "v$v" $file --clobber
+          } else {
+              gh release create "v$v" $file --title "MediaDex $v" --notes-file note.md
+          }
