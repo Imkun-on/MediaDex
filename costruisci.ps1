@@ -172,4 +172,8 @@ Write-Host "    $Prodotto" -ForegroundColor Green
 Write-Host "    $mb MB"
 Write-Host "    SHA256  $impronta"
 Write-Host ''
-Nota 'Per pubblicarlo: git tag v' + $Versione + ' ; git push --tags'
+# Le virgolette doppie, non il +. Chiamando una funzione, PowerShell legge
+# `Nota 'a' + $b + 'c'` come TRE argomenti posizionali invece che come una
+# concatenazione: arrivava solo il primo, e la riga stampata finiva con
+# "git tag v" senza il numero.
+Nota "Per pubblicarlo:  git tag v$Versione  &&  git push --tags"

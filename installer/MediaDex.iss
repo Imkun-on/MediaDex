@@ -247,13 +247,28 @@ end;
   premendo un bottone: possono essere ore di download. Cancellarli senza
   chiedere, dentro una disinstallazione che qualcuno sta facendo magari solo
   per reinstallare, sarebbe il danno peggiore che questo programma possa
-  fare. }
+  fare.
+
+  E quando non c'e' nessuno a cui chiedere, non si cancella.
+
+  In modalita' silenziosa - `unins000.exe /VERYSILENT`, che e' come disinstalla
+  uno strumento di distribuzione automatica - una MsgBox non compare affatto:
+  Inno risponde al posto tuo con il pulsante predefinito, che per MB_YESNO e'
+  «Si'». Il risultato era che una disinstallazione silenziosa portava via la
+  musica senza che nessuno l'avesse mai chiesto. L'ho scoperto provando
+  l'installatore per davvero e guardando cosa restava: non restava niente.
+
+  Adesso il silenzio vale come «no». Chi vuole cancellare anche i dati ha
+  sempre la disinstallazione normale, dove la domanda compare. }
 procedure CurUninstallStepChanged(PassoCorrente: TUninstallStep);
 var
   cartella: String;
 begin
   if PassoCorrente = usPostUninstall then
   begin
+    if UninstallSilent then
+      Exit;
+
     cartella := ExpandConstant('{app}');
     if DirExists(cartella) then
       if MsgBox(FmtMessage(ExpandConstant('{cm:RimuoviDati}'), [cartella]),
